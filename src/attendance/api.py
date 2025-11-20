@@ -1,4 +1,5 @@
 import logging
+from datetime import date
 from typing import List
 from fastapi import APIRouter, status, HTTPException
 
@@ -31,14 +32,38 @@ def create_attendance(request: AttendanceRequestSchema, db: get_db):
             detail="Something went wrong"
         )
 
-@attendance_router.post("/student/{student_id}/attendance", status_code=status.HTTP_201_CREATED, response_model=List[AttendanceBaseSchema])
+@attendance_router.get("/student/{student_id}/attendance", status_code=status.HTTP_201_CREATED, response_model=List[AttendanceBaseSchema])
 def retrieve_by_student_id(student_id: str, user_db: is_authorized_for([UserRoles.STUDENT.value, UserRoles.SUPER_ADMIN.value])):
     try:
         _, db = user_db
-
         attendance = attendance_crud.get_by_student_id(db=db, student_id=student_id)
-        return attendance
+
+        # Sort by created_at (latest first)
+        attendance.sort(key=lambda x: x.created_at, reverse=True)
+
+        today = date.today()
+        yesterday = today.fromordinal(today.toordinal() - 1)
+
+        formatted_data = []
+
+        for record in attendance:
+            created_date = record.created_at.date()
+
+            if created_date == today:
+                day_label = "Today"
+            elif created_date == yesterday:
+                day_label = "Yesterday"
+            else:
+                day_label = created_date.strftime("%d %b %Y")  # Example: 13 Oct 2025
+
+            record_dict = record.__dict__
+            record_dict["day_label"] = day_label
+
+            formatted_data.append(record_dict)
+
+        return formatted_data
+
     except HTTPException:
         raise
     except Exception as e:
-        pass
+        raise e

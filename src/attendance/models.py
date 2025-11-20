@@ -10,3 +10,8 @@ class Attendance(ModelBase):
     status = Column(String, nullable=False)
 
     student = relationship("Student", uselist=False)
+    qr_code = relationship("QRCode", uselist=False)
+
+    @property
+    def qr_code_name(self):
+        return self.qr_code.name if self.qr_code else None
